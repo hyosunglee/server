@@ -1,0 +1,6 @@
+cs:
+  include: ["large language model","reinforcement learning","retrieval augmented","vision transformer"]
+  exclude: ["astronomy","quantum chemistry"]
+bio:
+  include: ["single-cell","CRISPR","protein design"]
+  exclude: ["veterinary", "botany"]
