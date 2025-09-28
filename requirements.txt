@@ -1,0 +1,9 @@
+celery
+requests
+sqlalchemy
+redis
+psycopg2-binary
+pyyaml
+beautifulsoup4
+pytest
+pytest-mock

@@ -1,0 +1,1 @@
+# This file makes src/paper_collector a Python package.
