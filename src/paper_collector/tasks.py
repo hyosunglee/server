@@ -7,7 +7,6 @@ from bs4 import BeautifulSoup
 from .celery_app import app
 
 # Configure logger
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # --- Helper Functions ---
