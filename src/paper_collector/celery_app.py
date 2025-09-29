@@ -1,12 +1,49 @@
+import os
+import logging
+from logging.handlers import RotatingFileHandler
 from celery import Celery
 from celery.schedules import crontab
+from celery.signals import after_setup_logger
 
-# Create a Celery instance
+# --- Create logs directory if it doesn't exist ---
+LOG_DIR = 'logs'
+if not os.path.exists(LOG_DIR):
+    os.makedirs(LOG_DIR)
+
+# --- Logging Configuration ---
+@after_setup_logger.connect
+def setup_loggers(logger, **kwargs):
+    """
+    Redirect Celery loggers to files.
+    This function is connected to the `after_setup_logger` signal.
+    """
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+
+    # Configure file handler for the main Celery logger (workers)
+    fh_celery = RotatingFileHandler(
+        os.path.join(LOG_DIR, 'celery.log'),
+        maxBytes=10*1024*1024,  # 10 MB
+        backupCount=5
+    )
+    fh_celery.setFormatter(formatter)
+    logger.addHandler(fh_celery)
+
+    # Configure file handler for the Celery Beat logger
+    beat_logger = logging.getLogger('celery.beat')
+    fh_beat = RotatingFileHandler(
+        os.path.join(LOG_DIR, 'celery_beat.log'),
+        maxBytes=10*1024*1024,  # 10 MB
+        backupCount=5
+    )
+    fh_beat.setFormatter(formatter)
+    beat_logger.addHandler(fh_beat)
+
+
+# --- Celery App Initialization ---
 app = Celery(
     'paper_collector',
     broker='redis://localhost:6379/0',
     backend='redis://localhost:6379/0',
-    # Ensure both tasks and pipelines are included
     include=['paper_collector.tasks', 'paper_collector.pipelines']
 )
 
@@ -24,16 +61,13 @@ app.conf.update(
 app.conf.beat_schedule = {
     'start-hourly-harvest': {
         'task': 'pipelines.start_harvest',
-        # As per design: "OpenAlex 신규/업뎃 스캔: 매시 15분"
         'schedule': crontab(minute=15, hour='*'),
         'options': {'queue': 'harvest'},
     },
     'run-nightly-backfill-2023': {
         'task': 'pipelines.backfill_batch',
-        # As per design: "백필(Backfill) 오래된 연도대: 새벽 2~5시 저부하 시간대"
-        # Example: Run for year 2023 at 3 AM daily.
         'schedule': crontab(minute=0, hour=3),
-        'args': (2023,), # Argument for the backfill_batch task
+        'args': (2023,),
         'options': {'queue': 'backfill'},
     }
 }
